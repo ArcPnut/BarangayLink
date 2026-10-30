@@ -188,6 +188,12 @@ app.get('/resident/notifications', pageRole('resident'), (req, res) => {
 
 app.use('/api/admin', require('./routes/adminAccounts'));
 
+app.use('/api/admin', require('./routes/adminRequests'));
+
+app.get('/admin/requests', pageRole('admin'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'admin-requests.html'));
+});
+
 app.get('/admin/accounts', pageRole('admin'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'admin-accounts.html'));
 });

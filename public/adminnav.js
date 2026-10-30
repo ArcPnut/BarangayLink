@@ -1,7 +1,8 @@
 (function () {
   const links = [
     ['/admin', 'Dashboard'],
-    ['/admin/accounts', 'Accounts']
+    ['/admin/accounts', 'Accounts'],
+    ['/admin/requests', 'Document Requests']
   ];
   const path = window.location.pathname;
 
