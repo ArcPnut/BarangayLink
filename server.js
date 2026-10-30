@@ -154,6 +154,12 @@ app.get('/resident/reservations', pageRole('resident'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'reservations.html'));
 });
 
+app.use('/api', require('./routes/notifications'));
+
+app.get('/resident/notifications', pageRole('resident'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'notifications.html'));
+});
+
 app.get('/resident/requests', pageRole('resident'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'requests.html'));
 });

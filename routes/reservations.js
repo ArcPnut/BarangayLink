@@ -192,11 +192,12 @@ router.post('/reservations', requireResident, (req, res) => {
           req.file ? req.file.filename : null
         ]
       );
-      await pool.execute(
-        'INSERT INTO notifications (user_id, message) VALUES (?, ?)',
+        await pool.execute(
+        'INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)',
         [
           req.session.user.user_id,
-          `Your reservation request for ${facilities[0].facility_name} on ${reservation_date} was submitted.`
+          `Your reservation request for ${facilities[0].facility_name} on ${reservation_date} was submitted.`,
+          '/resident/reservations'
         ]
       );
 
@@ -225,8 +226,8 @@ router.post('/reservations/:id/cancel', requireResident, async (req, res) => {
       return res.status(409).json({ error: 'Only your own pending reservations can be cancelled.' });
     }
     await pool.execute(
-      'INSERT INTO notifications (user_id, message) VALUES (?, ?)',
-      [req.session.user.user_id, 'Your reservation request was cancelled.']
+      'INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)',
+      [req.session.user.user_id, 'Your reservation request was cancelled.', '/resident/reservations']
     );
     res.json({ message: 'Reservation cancelled.' });
   } catch (err) {

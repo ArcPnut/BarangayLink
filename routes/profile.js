@@ -103,9 +103,9 @@ router.post('/id', requireResident, (req, res) => {
          WHERE user_id = ?`,
         [req.file.filename, userId]
       );
-      await pool.execute(
-        'INSERT INTO notifications (user_id, message) VALUES (?, ?)',
-        [userId, 'Your ID was submitted and is waiting for admin review.']
+        await pool.execute(
+        'INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)',
+        [userId, 'Your ID was submitted and is waiting for admin review.', '/resident/profile']
       );
 
       if (current.id_file_path) {

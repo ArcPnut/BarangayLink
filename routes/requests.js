@@ -86,8 +86,8 @@ router.post('/requests', requireResident, async (req, res) => {
       [resident.resident_id, typeId, purpose.trim()]
     );
     await pool.execute(
-      'INSERT INTO notifications (user_id, message) VALUES (?, ?)',
-      [req.session.user.user_id, `Your request for ${types[0].document_name} was submitted.`]
+      'INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)',
+      [req.session.user.user_id, `Your request for ${types[0].document_name} was submitted.`, '/resident/requests']
     );
 
     res.status(201).json({ message: 'Request submitted. Check notifications for updates.' });
@@ -115,8 +115,8 @@ router.post('/requests/:id/cancel', requireResident, async (req, res) => {
       return res.status(409).json({ error: 'Only your own pending requests can be cancelled.' });
     }
     await pool.execute(
-      'INSERT INTO notifications (user_id, message) VALUES (?, ?)',
-      [req.session.user.user_id, 'Your document request was cancelled.']
+      'INSERT INTO notifications (user_id, message, link) VALUES (?, ?, ?)',
+      [req.session.user.user_id, 'Your document request was cancelled.', '/resident/requests']
     );
     res.json({ message: 'Request cancelled.' });
   } catch (err) {
