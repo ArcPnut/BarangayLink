@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BarangayLink | Reservations</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand navbar-dark bg-dark px-3">
+    <span class="navbar-brand">BarangayLink</span>
+    <div class="navbar-nav me-auto">
+      <a class="nav-link" href="/resident">Home</a>
+      <a class="nav-link" href="/resident/profile">Profile</a>
+      <a class="nav-link" href="/resident/requests">Requests</a>
+      <a class="nav-link active" href="/resident/reservations">Reservations</a>
+    </div>
+    <button id="logout" class="btn btn-outline-light btn-sm">Log out</button>
+  </nav>
+
+  <div class="container my-4" style="max-width: 900px;">
+    <h1 class="h4 mb-3">Facility Reservations</h1>
+
+    <div id="verifyWarning" class="alert alert-warning d-none">
+      Your account is not verified yet. Upload your ID in the
+      <a href="/resident/profile">Profile tab</a> to reserve facilities.
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h2 class="h6">New reservation</h2>
+        <div id="message" class="alert d-none"></div>
+        <form id="reservationForm">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label" for="facility_id">Facility</label>
+              <select class="form-select" id="facility_id" required></select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label" for="reservation_date">Date</label>
+              <input class="form-control" type="date" id="reservation_date" required>
+            </div>
+          </div>
+
+          <div id="availability" class="alert alert-light border small d-none"></div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label" for="start_time">Start time</label>
+              <input class="form-control" type="time" id="start_time" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label" for="end_time">End time</label>
+              <input class="form-control" type="time" id="end_time" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="purpose">Purpose</label>
+            <input class="form-control" id="purpose" maxlength="255" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="equipment_needs">Equipment needs (optional)</label>
+            <input class="form-control" id="equipment_needs" maxlength="255" placeholder="e.g. 10 chairs">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="supporting_doc">Supporting document (optional, JPG, PNG or PDF, up to 5 MB)</label>
+            <input class="form-control" type="file" id="supporting_doc" accept=".jpg,.jpeg,.png,.pdf">
+          </div>
+          <button class="btn btn-primary" type="submit" id="submitBtn">Submit reservation</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h6">My reservations</h2>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Facility</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Purpose</th>
+                <th>Status</th>
+                <th>Admin notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="reservationRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusClass = {
+      'Pending': 'bg-warning text-dark',
+      'Approved': 'bg-success',
+      'Rejected': 'bg-danger',
+      'Cancelled': 'bg-secondary'
+    };
+
+    function show(text, type) {
+      const box = document.getElementById('message');
+      box.textContent = text;
+      box.className = 'alert alert-' + type;
+    }
+
+    function todayString() {
+      const d = new Date();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return d.getFullYear() + '-' + mm + '-' + dd;
+    }
+
+    async function checkVerification() {
+      const res = await fetch('/api/profile');
+      if (!res.ok) { window.location.href = '/'; return; }
+      const p = await res.json();
+      const verified = p.verification_status === 'Verified';
+      document.getElementById('verifyWarning').classList.toggle('d-none', verified);
+      document.getElementById('submitBtn').disabled = !verified;
+    }
+
+    async function loadFacilities() {
+      const res = await fetch('/api/facilities');
+      if (!res.ok) return;
+      const facilities = await res.json();
+      const select = document.getElementById('facility_id');
+      select.innerHTML = '';
+      facilities.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.facility_id;
+        opt.textContent = f.facility_name;
+        select.appendChild(opt);
+      });
+      loadAvailability();
+    }
+
+    async function loadAvailability() {
+      const box = document.getElementById('availability');
+      const facility = document.getElementById('facility_id').value;
+      const date = document.getElementById('reservation_date').value;
+      if (!facility || !date) { box.classList.add('d-none'); return; }
+
+      const res = await fetch('/api/availability?facility_id=' + encodeURIComponent(facility) +
+                              '&date=' + encodeURIComponent(date));
+      if (!res.ok) { box.classList.add('d-none'); return; }
+      const slots = await res.json();
+
+      box.classList.remove('d-none');
+      if (slots.length === 0) {
+        box.textContent = 'No approved bookings on this date. The whole day is open.';
+      } else {
+        box.textContent = 'Already booked: ' +
+          slots.map(s => s.start_time + ' to ' + s.end_time).join(', ');
+      }
+    }
+
+    function cell(text) {
+      const td = document.createElement('td');
+      td.textContent = text || '';
+      return td;
+    }
+
+    async function loadReservations() {
+      const res = await fetch('/api/reservations');
+      if (!res.ok) return;
+      const rows = await res.json();
+      const body = document.getElementById('reservationRows');
+      body.innerHTML = '';
+
+      if (rows.length === 0) {
+        const tr = document.createElement('tr');
+        const td = cell('No reservations yet.');
+        td.colSpan = 7;
+        td.className = 'text-muted';
+        tr.appendChild(td);
+        body.appendChild(tr);
+        return;
+      }
+
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.appendChild(cell(r.facility_name));
+        tr.appendChild(cell(r.reservation_date));
+        tr.appendChild(cell(r.start_time + ' to ' + r.end_time));
+        tr.appendChild(cell(r.purpose));
+
+        const statusTd = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (statusClass[r.status] || 'bg-secondary');
+        badge.textContent = r.status;
+        statusTd.appendChild(badge);
+        tr.appendChild(statusTd);
+
+        tr.appendChild(cell(r.admin_notes));
+
+        const actionTd = document.createElement('td');
+        if (r.status === 'Pending') {
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-outline-danger btn-sm';
+          btn.textContent = 'Cancel';
+          btn.addEventListener('click', () => cancelReservation(r.reservation_id));
+          actionTd.appendChild(btn);
+        }
+        tr.appendChild(actionTd);
+        body.appendChild(tr);
+      });
+    }
+
+    async function cancelReservation(id) {
+      if (!confirm('Cancel this reservation request?')) return;
+      try {
+        const res = await fetch('/api/reservations/' + id + '/cancel', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        show(data.message, 'success');
+        loadReservations();
+      } catch (err) {
+        show(err.message, 'danger');
+      }
+    }
+
+    document.getElementById('facility_id').addEventListener('change', loadAvailability);
+    document.getElementById('reservation_date').addEventListener('change', loadAvailability);
+    document.getElementById('reservation_date').min = todayString();
+
+    document.getElementById('reservationForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = new FormData();
+      ['facility_id', 'reservation_date', 'start_time', 'end_time', 'purpose', 'equipment_needs']
+        .forEach(id => form.append(id, document.getElementById(id).value));
+      const file = document.getElementById('supporting_doc').files[0];
+      if (file) form.append('supporting_doc', file);
+
+      try {
+        const res = await fetch('/api/reservations', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        show(data.message, 'success');
+        ['start_time', 'end_time', 'purpose', 'equipment_needs', 'supporting_doc']
+          .forEach(id => { document.getElementById(id).value = ''; });
+        loadReservations();
+        loadAvailability();
+      } catch (err) {
+        show(err.message, 'danger');
+        loadAvailability();
+      }
+    });
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+
+    checkVerification();
+    loadFacilities();
+    loadReservations();
+  </script>
+</body>
+</html>

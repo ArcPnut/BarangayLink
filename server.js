@@ -148,6 +148,12 @@ app.use('/api/profile', require('./routes/profile'));
 
 app.use('/api', require('./routes/requests'));
 
+app.use('/api', require('./routes/reservations'));
+
+app.get('/resident/reservations', pageRole('resident'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'reservations.html'));
+});
+
 app.get('/resident/requests', pageRole('resident'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'requests.html'));
 });
