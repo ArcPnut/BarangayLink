@@ -143,6 +143,12 @@ app.get('/api/me', requireLogin, async (req, res) => {
 });
 
 // ---------- protected pages ----------
+// ---------- profile ----------
+app.use('/api/profile', require('./routes/profile'));
+
+app.get('/resident/profile', pageRole('resident'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'profile.html'));
+});
 app.get('/resident', pageRole('resident'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'resident.html'));
 });
