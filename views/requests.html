@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BarangayLink | Requests</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand navbar-dark bg-dark px-3">
+    <span class="navbar-brand">BarangayLink</span>
+    <div class="navbar-nav me-auto">
+      <a class="nav-link" href="/resident">Home</a>
+      <a class="nav-link" href="/resident/profile">Profile</a>
+      <a class="nav-link active" href="/resident/requests">Requests</a>
+    </div>
+    <button id="logout" class="btn btn-outline-light btn-sm">Log out</button>
+  </nav>
+
+  <div class="container my-4" style="max-width: 900px;">
+    <h1 class="h4 mb-3">Document Requests</h1>
+
+    <div id="verifyWarning" class="alert alert-warning d-none">
+      Your account is not verified yet. Upload your ID in the
+      <a href="/resident/profile">Profile tab</a> to request documents.
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h2 class="h6">New request</h2>
+        <div id="message" class="alert d-none"></div>
+        <form id="requestForm">
+          <div class="mb-3">
+            <label class="form-label" for="document_type_id">Document type</label>
+            <select class="form-select" id="document_type_id" required></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="purpose">Purpose</label>
+            <input class="form-control" id="purpose" maxlength="255" placeholder="e.g. Employment application" required>
+          </div>
+          <button class="btn btn-primary" type="submit" id="submitBtn">Submit request</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h6">My requests</h2>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Purpose</th>
+                <th>Status</th>
+                <th>Admin notes</th>
+                <th>Requested</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="requestRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusClass = {
+      'Pending': 'bg-warning text-dark',
+      'Processing': 'bg-info text-dark',
+      'Ready for Pickup': 'bg-primary',
+      'Completed': 'bg-success',
+      'Denied': 'bg-danger',
+      'Cancelled': 'bg-secondary'
+    };
+
+    function show(text, type) {
+      const box = document.getElementById('message');
+      box.textContent = text;
+      box.className = 'alert alert-' + type;
+    }
+
+    async function checkVerification() {
+      const res = await fetch('/api/profile');
+      if (!res.ok) { window.location.href = '/'; return; }
+      const p = await res.json();
+      const verified = p.verification_status === 'Verified';
+      document.getElementById('verifyWarning').classList.toggle('d-none', verified);
+      document.getElementById('submitBtn').disabled = !verified;
+    }
+
+    async function loadTypes() {
+      const res = await fetch('/api/document-types');
+      if (!res.ok) return;
+      const types = await res.json();
+      const select = document.getElementById('document_type_id');
+      select.innerHTML = '';
+      types.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.document_type_id;
+        opt.textContent = t.document_name;
+        select.appendChild(opt);
+      });
+    }
+
+    function cell(text) {
+      const td = document.createElement('td');
+      td.textContent = text || '';
+      return td;
+    }
+
+    async function loadRequests() {
+      const res = await fetch('/api/requests');
+      if (!res.ok) return;
+      const rows = await res.json();
+      const body = document.getElementById('requestRows');
+      body.innerHTML = '';
+
+      if (rows.length === 0) {
+        const tr = document.createElement('tr');
+        const td = cell('No requests yet.');
+        td.colSpan = 6;
+        td.className = 'text-muted';
+        tr.appendChild(td);
+        body.appendChild(tr);
+        return;
+      }
+
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.appendChild(cell(r.document_name));
+        tr.appendChild(cell(r.purpose));
+
+        const statusTd = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (statusClass[r.status] || 'bg-secondary');
+        badge.textContent = r.status;
+        statusTd.appendChild(badge);
+        tr.appendChild(statusTd);
+
+        tr.appendChild(cell(r.admin_notes));
+        tr.appendChild(cell(r.requested_at));
+
+        const actionTd = document.createElement('td');
+        if (r.status === 'Pending') {
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-outline-danger btn-sm';
+          btn.textContent = 'Cancel';
+          btn.addEventListener('click', () => cancelRequest(r.request_id));
+          actionTd.appendChild(btn);
+        }
+        tr.appendChild(actionTd);
+        body.appendChild(tr);
+      });
+    }
+
+    async function cancelRequest(id) {
+      if (!confirm('Cancel this request?')) return;
+      try {
+        const res = await fetch('/api/requests/' + id + '/cancel', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        show(data.message, 'success');
+        loadRequests();
+      } catch (err) {
+        show(err.message, 'danger');
+      }
+    }
+
+    document.getElementById('requestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch('/api/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            document_type_id: document.getElementById('document_type_id').value,
+            purpose: document.getElementById('purpose').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        show(data.message, 'success');
+        document.getElementById('purpose').value = '';
+        loadRequests();
+      } catch (err) {
+        show(err.message, 'danger');
+      }
+    });
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+
+    checkVerification();
+    loadTypes();
+    loadRequests();
+  </script>
+</body>
+</html>

@@ -146,6 +146,12 @@ app.get('/api/me', requireLogin, async (req, res) => {
 // ---------- profile ----------
 app.use('/api/profile', require('./routes/profile'));
 
+app.use('/api', require('./routes/requests'));
+
+app.get('/resident/requests', pageRole('resident'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'requests.html'));
+});
+
 app.get('/resident/profile', pageRole('resident'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'profile.html'));
 });
