@@ -15,6 +15,29 @@ app.use(session({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// end the session of anyone whose account has been terminated
+app.use(async (req, res, next) => {
+  if (!req.session.user) return next();
+  try {
+    const [rows] = await pool.execute(
+      'SELECT is_active FROM users WHERE user_id = ?',
+      [req.session.user.user_id]
+    );
+    if (!rows[0] || !rows[0].is_active) {
+      return req.session.destroy(() => {
+        res.clearCookie('connect.sid');
+        if (req.path.startsWith('/api/')) {
+          return res.status(401).json({ error: 'Your session has ended.' });
+        }
+        res.redirect('/');
+      });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- access control ----------
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.status(401).json({ error: 'Please log in first.' });
@@ -93,7 +116,7 @@ app.post('/api/login', async (req, res) => {
 
   try {
     const [rows] = await pool.execute(
-      'SELECT user_id, password_hash, role, is_active FROM users WHERE email = ?',
+      'SELECT user_id, password_hash, role, is_active, termination_reason FROM users WHERE email = ?',
       [email.trim().toLowerCase()]
     );
     const user = rows[0];
@@ -103,7 +126,10 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect email or password. Try again.' });
     }
     if (!user.is_active) {
-      return res.status(403).json({ error: 'This account has been terminated.' });
+      return res.status(403).json({
+        error: 'This account has been terminated.' +
+          (user.termination_reason ? ' \nReason: ' + user.termination_reason : '')
+      });
     }
 
     req.session.regenerate(err => {
@@ -158,6 +184,12 @@ app.use('/api', require('./routes/notifications'));
 
 app.get('/resident/notifications', pageRole('resident'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'notifications.html'));
+});
+
+app.use('/api/admin', require('./routes/adminAccounts'));
+
+app.get('/admin/accounts', pageRole('admin'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'admin-accounts.html'));
 });
 
 app.get('/resident/requests', pageRole('resident'), (req, res) => {

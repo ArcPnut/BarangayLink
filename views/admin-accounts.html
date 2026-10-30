@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BarangayLink | Accounts</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <script src="/adminnav.js"></script>
+
+  <div class="container my-4" style="max-width: 1000px;">
+    <h1 class="h4 mb-3">Accounts</h1>
+    <div id="pageMessage" class="alert d-none"></div>
+
+    <div class="btn-group mb-3" role="group">
+      <button class="btn btn-outline-dark active" id="tabUnverified">
+        Unverified <span class="badge bg-secondary" id="countUnverified">0</span>
+      </button>
+      <button class="btn btn-outline-dark" id="tabVerified">
+        Verified <span class="badge bg-secondary" id="countVerified">0</span>
+      </button>
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-md-5">
+        <input class="form-control" id="search" placeholder="Search name or email">
+      </div>
+      <div class="col-md-4">
+        <select class="form-select" id="statusFilter"></select>
+      </div>
+      <div class="col-md-3">
+        <select class="form-select" id="sort">
+          <option value="newest">Newest first</option>
+          <option value="name">Name A to Z</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr><th>Name</th><th>Email</th><th>Status</th><th>Registered</th><th></th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- one popup, with different panels inside -->
+  <div class="modal fade" id="accountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="modalTitle"></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modalMessage" class="alert d-none"></div>
+
+          <div id="panelDetails">
+            <dl class="row mb-3" id="detailList"></dl>
+            <div id="idBox"></div>
+          </div>
+
+          <div id="panelReject" class="d-none">
+            <label class="form-label" for="rejectNote">Rejection note (required, the resident will see it)</label>
+            <textarea class="form-control" id="rejectNote" rows="3" maxlength="200"
+                      placeholder="e.g. ID photo is blurry"></textarea>
+          </div>
+
+          <div id="panelTerminate" class="d-none">
+            <label class="form-label" for="terminateReason">Termination reason (required)</label>
+            <textarea class="form-control" id="terminateReason" rows="3" maxlength="255"></textarea>
+            <div class="form-text">The account's records are kept. The resident can no longer log in.</div>
+          </div>
+
+          <div id="panelEdit" class="d-none">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="editFirst">First name</label>
+                <input class="form-control" id="editFirst" maxlength="100">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="editLast">Last name</label>
+                <input class="form-control" id="editLast" maxlength="100">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="editAddress">Address</label>
+              <input class="form-control" id="editAddress" maxlength="255">
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="editContact">Contact number</label>
+              <input class="form-control" id="editContact" maxlength="20">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" id="modalFooter"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const state = { accounts: [], tab: 'unverified', selected: null };
+    const modal = new bootstrap.Modal(document.getElementById('accountModal'));
+
+    const badgeClass = {
+      Pending: 'bg-warning text-dark',
+      Unverified: 'bg-secondary',
+      Rejected: 'bg-danger',
+      Active: 'bg-success',
+      Terminated: 'bg-dark'
+    };
+
+    const filterOptions = {
+      unverified: [['all', 'All statuses'], ['Pending', 'Pending review'], ['Unverified', 'No ID yet'], ['Rejected', 'Rejected']],
+      verified: [['all', 'All statuses'], ['Active', 'Active'], ['Terminated', 'Terminated']]
+    };
+
+    function statusOf(a) {
+      if (a.verification_status === 'Verified') return a.is_active ? 'Active' : 'Terminated';
+      return a.verification_status;
+    }
+
+    function statusText(a) {
+      const s = statusOf(a);
+      return s === 'Unverified' ? 'No ID yet' : s;
+    }
+
+    function pageMessage(text, type) {
+      const box = document.getElementById('pageMessage');
+      box.textContent = text;
+      box.className = 'alert alert-' + type;
+    }
+
+    function modalMessage(text, type) {
+      const box = document.getElementById('modalMessage');
+      box.textContent = text;
+      box.className = 'alert alert-' + type;
+    }
+
+    async function api(url, method, body) {
+      const res = await fetch(url, {
+        method: method,
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+      return data;
+    }
+
+    async function loadAccounts() {
+      const res = await fetch('/api/admin/accounts');
+      if (!res.ok) { window.location.href = '/'; return; }
+      state.accounts = await res.json();
+      render();
+    }
+
+    function buildFilter() {
+      const select = document.getElementById('statusFilter');
+      select.innerHTML = '';
+      filterOptions[state.tab].forEach(([value, label]) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        select.appendChild(opt);
+      });
+    }
+
+    function setTab(tab) {
+      state.tab = tab;
+      document.getElementById('tabUnverified').classList.toggle('active', tab === 'unverified');
+      document.getElementById('tabVerified').classList.toggle('active', tab === 'verified');
+      buildFilter();
+      render();
+    }
+
+    function cell(text) {
+      const td = document.createElement('td');
+      td.textContent = text || '';
+      return td;
+    }
+
+    function render() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      const filter = document.getElementById('statusFilter').value || 'all';
+      const sort = document.getElementById('sort').value;
+
+      document.getElementById('countUnverified').textContent =
+        state.accounts.filter(a => a.verification_status !== 'Verified').length;
+      document.getElementById('countVerified').textContent =
+        state.accounts.filter(a => a.verification_status === 'Verified').length;
+
+      let rows = state.accounts
+        .filter(a => (a.verification_status === 'Verified') === (state.tab === 'verified'))
+        .filter(a => {
+          const text = (a.first_name + ' ' + a.last_name + ' ' + a.email).toLowerCase();
+          return (!q || text.includes(q)) && (filter === 'all' || statusOf(a) === filter);
+        });
+
+      if (sort === 'name') {
+        rows.sort((a, b) => (a.last_name + a.first_name).localeCompare(b.last_name + b.first_name));
+      }
+      if (state.tab === 'unverified') {
+        rows = [
+          ...rows.filter(a => a.verification_status === 'Pending'),
+          ...rows.filter(a => a.verification_status !== 'Pending')
+        ];
+      }
+
+      const body = document.getElementById('rows');
+      body.innerHTML = '';
+
+      if (rows.length === 0) {
+        const tr = document.createElement('tr');
+        const td = cell('No accounts found.');
+        td.colSpan = 5;
+        td.className = 'text-muted';
+        tr.appendChild(td);
+        body.appendChild(tr);
+        return;
+      }
+
+      rows.forEach(a => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.appendChild(cell(a.last_name + ', ' + a.first_name));
+        tr.appendChild(cell(a.email));
+
+        const statusTd = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (badgeClass[statusOf(a)] || 'bg-secondary');
+        badge.textContent = statusText(a);
+        statusTd.appendChild(badge);
+        tr.appendChild(statusTd);
+
+        tr.appendChild(cell(a.date_created.slice(0, 10)));
+
+        const actionTd = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-primary btn-sm';
+        btn.textContent = a.verification_status === 'Pending' ? 'Review' : 'View';
+        actionTd.appendChild(btn);
+        tr.appendChild(actionTd);
+
+        tr.addEventListener('click', () => openAccount(a));
+        body.appendChild(tr);
+      });
+    }
+
+    function addDetail(list, label, value) {
+      const dt = document.createElement('dt');
+      dt.className = 'col-sm-4';
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      dd.className = 'col-sm-8';
+      dd.textContent = value || '-';
+      list.appendChild(dt);
+      list.appendChild(dd);
+    }
+
+    function openAccount(a) {
+      state.selected = a;
+      document.getElementById('modalTitle').textContent = a.first_name + ' ' + a.last_name;
+
+      const list = document.getElementById('detailList');
+      list.innerHTML = '';
+      addDetail(list, 'Email', a.email);
+      addDetail(list, 'Birthdate', a.birthdate + ' (age ' + a.age + ')');
+      addDetail(list, 'Address', a.address);
+      addDetail(list, 'Contact number', a.contact_no);
+      addDetail(list, 'Registered', a.date_created.slice(0, 10));
+      addDetail(list, 'Status', statusText(a));
+      if (a.verification_status === 'Rejected') addDetail(list, 'Rejection note', a.verification_remarks);
+      if (a.verification_status === 'Verified' && !a.is_active) {
+        addDetail(list, 'Termination reason', a.termination_reason);
+      }
+
+      const idBox = document.getElementById('idBox');
+      idBox.innerHTML = '';
+      if (a.has_id) {
+        const link = document.createElement('a');
+        link.href = '/api/admin/accounts/' + a.resident_id + '/id-file';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className = 'btn btn-outline-secondary btn-sm';
+        link.textContent = 'Open submitted ID (new tab)';
+        idBox.appendChild(link);
+      } else {
+        idBox.textContent = 'No ID uploaded yet.';
+        idBox.className = 'text-muted';
+      }
+
+      showPanel('details');
+      modal.show();
+    }
+
+    function footerButton(text, cls, handler) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn ' + cls;
+      btn.textContent = text;
+      btn.addEventListener('click', handler);
+      document.getElementById('modalFooter').appendChild(btn);
+    }
+
+    function showPanel(name) {
+      ['Details', 'Reject', 'Terminate', 'Edit'].forEach(p => {
+        document.getElementById('panel' + p).classList.toggle('d-none', p.toLowerCase() !== name);
+      });
+      document.getElementById('modalMessage').className = 'alert d-none';
+      document.getElementById('modalFooter').innerHTML = '';
+      const a = state.selected;
+
+      if (name === 'details') {
+        if (a.verification_status === 'Pending') {
+          footerButton('Reject', 'btn-outline-danger', () => {
+            document.getElementById('rejectNote').value = '';
+            showPanel('reject');
+          });
+          footerButton('Approve', 'btn-success', doApprove);
+        } else if (a.verification_status === 'Verified' && a.is_active) {
+          footerButton('Edit', 'btn-outline-primary', () => {
+            document.getElementById('editFirst').value = a.first_name;
+            document.getElementById('editLast').value = a.last_name;
+            document.getElementById('editAddress').value = a.address;
+            document.getElementById('editContact').value = a.contact_no || '';
+            showPanel('edit');
+          });
+          footerButton('Terminate', 'btn-outline-danger', () => {
+            document.getElementById('terminateReason').value = '';
+            showPanel('terminate');
+          });
+        } else if (a.verification_status === 'Verified') {
+          footerButton('Reactivate', 'btn-success', doReactivate);
+        }
+        footerButton('Close', 'btn-secondary', () => modal.hide());
+      } else if (name === 'reject') {
+        footerButton('Back', 'btn-secondary', () => showPanel('details'));
+        footerButton('Confirm rejection', 'btn-danger', doReject);
+      } else if (name === 'terminate') {
+        footerButton('Back', 'btn-secondary', () => showPanel('details'));
+        footerButton('Confirm termination', 'btn-danger', doTerminate);
+      } else if (name === 'edit') {
+        footerButton('Back', 'btn-secondary', () => showPanel('details'));
+        footerButton('Save changes', 'btn-primary', doEdit);
+      }
+    }
+
+    async function runAction(fn) {
+      try {
+        const data = await fn();
+        modal.hide();
+        pageMessage(data.message, 'success');
+        await loadAccounts();
+      } catch (err) {
+        modalMessage(err.message, 'danger');
+      }
+    }
+
+    function base() {
+      return '/api/admin/accounts/' + state.selected.resident_id;
+    }
+
+    function doApprove() {
+      if (!confirm('Approve this account?')) return;
+      runAction(() => api(base() + '/approve', 'POST'));
+    }
+
+    function doReject() {
+      const note = document.getElementById('rejectNote').value.trim();
+      if (!note) { modalMessage('Enter a rejection note.', 'danger'); return; }
+      runAction(() => api(base() + '/reject', 'POST', { note }));
+    }
+
+    function doTerminate() {
+      const reason = document.getElementById('terminateReason').value.trim();
+      if (!reason) { modalMessage('Enter a termination reason.', 'danger'); return; }
+      runAction(() => api(base() + '/terminate', 'POST', { reason }));
+    }
+
+    function doReactivate() {
+      if (!confirm('Reactivate this account?')) return;
+      runAction(() => api(base() + '/reactivate', 'POST'));
+    }
+
+    function doEdit() {
+      runAction(() => api(base(), 'PUT', {
+        first_name: document.getElementById('editFirst').value,
+        last_name: document.getElementById('editLast').value,
+        address: document.getElementById('editAddress').value,
+        contact_no: document.getElementById('editContact').value
+      }));
+    }
+
+    document.getElementById('tabUnverified').addEventListener('click', () => setTab('unverified'));
+    document.getElementById('tabVerified').addEventListener('click', () => setTab('verified'));
+    document.getElementById('search').addEventListener('input', render);
+    document.getElementById('statusFilter').addEventListener('change', render);
+    document.getElementById('sort').addEventListener('change', render);
+
+    buildFilter();
+    loadAccounts();
+  </script>
+</body>
+</html>
