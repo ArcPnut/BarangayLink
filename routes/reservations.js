@@ -236,4 +236,45 @@ router.post('/reservations/:id/cancel', requireResident, async (req, res) => {
   }
 });
 
+// bookings in one month for one facility, used by the calendar
+router.get('/reservations/calendar', requireResident, async (req, res) => {
+  const facilityId = Number(req.query.facility_id);
+  const year = Number(req.query.year);
+  const month = Number(req.query.month);
+
+  if (!Number.isInteger(facilityId) || facilityId < 1 ||
+      !Number.isInteger(year) || year < 2000 || year > 2100 ||
+      !Number.isInteger(month) || month < 1 || month > 12) {
+    return res.status(400).json({ error: 'Invalid calendar request.' });
+  }
+
+  const pad = n => String(n).padStart(2, '0');
+  const first = `${year}-${pad(month)}-01`;
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const next = `${nextYear}-${pad(nextMonth)}-01`;
+
+  try {
+    const resident = await getResident(req.session.user.user_id);
+    const [rows] = await pool.execute(
+      `SELECT reservation_id, resident_id, reservation_date, start_time, end_time, status
+       FROM reservations
+       WHERE facility_id = ? AND reservation_date >= ? AND reservation_date < ?
+         AND status IN ('Pending', 'Approved')
+       ORDER BY reservation_date, start_time`,
+      [facilityId, first, next]
+    );
+    res.json(rows.map(r => ({
+      reservation_date: r.reservation_date,
+      start_time: r.start_time.slice(0, 5),
+      end_time: r.end_time.slice(0, 5),
+      status: r.status,
+      mine: r.resident_id === resident.resident_id
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong.' });
+  }
+});
+
 module.exports = router;

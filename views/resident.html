@@ -152,7 +152,7 @@
 
     async function loadReservations() {
       const list = document.getElementById('upcoming');
-      const res = await fetch('/api/reservations');
+      const res = await fetch('/api/resident/reservations');
       if (!res.ok) return;
       const today = todayString();
       const rows = (await res.json())

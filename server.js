@@ -174,7 +174,7 @@ app.use('/api/profile', require('./routes/profile'));
 
 app.use('/api', require('./routes/requests'));
 
-app.use('/api', require('./routes/reservations'));
+app.use('/api/resident', require('./routes/reservations'));
 
 app.get('/resident/reservations', pageRole('resident'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'reservations.html'));
@@ -189,6 +189,12 @@ app.get('/resident/notifications', pageRole('resident'), (req, res) => {
 app.use('/api/admin', require('./routes/adminAccounts'));
 
 app.use('/api/admin', require('./routes/adminRequests'));
+
+app.use('/api/admin', require('./routes/adminReservations'));
+
+app.get('/admin/reservations', pageRole('admin'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'admin-reservations.html'));
+});
 
 app.get('/admin/requests', pageRole('admin'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'admin-requests.html'));

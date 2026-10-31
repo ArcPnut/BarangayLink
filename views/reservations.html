@@ -5,63 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BarangayLink | Reservations</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .cal-head { text-align: center; font-weight: 600; font-size: .85rem; padding: 4px 0; }
+    .cal-cell {
+      min-height: 100px; border: 1px solid var(--bs-border-color); border-radius: 6px;
+      padding: 4px; background: var(--bs-body-bg); font-size: .75rem; cursor: pointer; overflow: hidden;
+    }
+    .cal-cell:hover { border-color: var(--bs-primary); }
+    .cal-cell.empty { border: none; background: transparent; cursor: default; }
+    .cal-cell.past { opacity: .45; cursor: not-allowed; }
+    .cal-cell.past:hover { border-color: var(--bs-border-color); }
+    .cal-cell.selected { outline: 2px solid var(--bs-primary); }
+    .cal-cell.today .cal-day { color: var(--bs-primary); }
+    .cal-day { font-weight: 700; font-size: .85rem; }
+    .slot {
+      display: block; border-radius: 4px; padding: 0 4px; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .slot.approved { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+    .slot.pending { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+    .avail { color: var(--bs-success); }
+    @media (max-width: 576px) {
+      .cal-cell { min-height: 70px; padding: 2px; }
+      .slot { font-size: .62rem; }
+    }
+  </style>
 </head>
 <body class="bg-light">
-    <script src="/nav.js"></script>
+  <script src="/nav.js"></script>
 
-  <div class="container my-4" style="max-width: 900px;">
+  <div class="container my-4" style="max-width: 1000px;">
     <h1 class="h4 mb-3">Facility Reservations</h1>
 
     <div id="verifyWarning" class="alert alert-warning d-none">
       Your account is not verified yet. Upload your ID in the
       <a href="/resident/profile">Profile tab</a> to reserve facilities.
     </div>
+    <div id="pageMessage" class="alert d-none"></div>
 
+    <!-- calendar -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h2 class="h6">New reservation</h2>
-        <div id="message" class="alert d-none"></div>
+        <div class="row g-2 align-items-center mb-3">
+          <div class="col-md-5">
+            <select id="facility" class="form-select" aria-label="Facility"></select>
+          </div>
+          <div class="col-md-7 d-flex justify-content-md-end align-items-center gap-2">
+            <button id="prevMonth" class="btn btn-outline-secondary btn-sm" aria-label="Previous month">&lt;</button>
+            <strong id="monthTitle" style="min-width: 150px; text-align: center;"></strong>
+            <button id="nextMonth" class="btn btn-outline-secondary btn-sm" aria-label="Next month">&gt;</button>
+          </div>
+        </div>
+        <div class="small text-muted mb-2">
+          <span class="avail">Available</span> ·
+          <span class="badge bg-warning text-dark">Pending</span> awaiting admin ·
+          <span class="badge bg-danger">Booked</span> approved. Click a date to see details.
+        </div>
+        <div class="cal-grid" id="calendar"></div>
+      </div>
+    </div>
+
+    <!-- selected day -->
+    <div class="card shadow-sm mb-4 d-none" id="dayPanel">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <h2 class="h6 mb-0" id="dayTitle"></h2>
+          <button class="btn btn-primary btn-sm" id="reserveBtn">Reserve this date</button>
+        </div>
+        <ul class="list-group list-group-flush mt-2" id="dayList"></ul>
+      </div>
+    </div>
+
+    <!-- reservation form -->
+    <div class="card shadow-sm mb-4 d-none" id="formPanel">
+      <div class="card-body">
+        <h2 class="h6" id="formTitle"></h2>
+        <div id="formMessage" class="alert d-none"></div>
         <form id="reservationForm">
           <div class="row">
             <div class="col-md-6 mb-3">
-              <label class="form-label" for="facility_id">Facility</label>
-              <select class="form-select" id="facility_id" required></select>
+              <label class="form-label">Start time</label>
+              <div class="d-flex gap-2" id="startTime"></div>
             </div>
             <div class="col-md-6 mb-3">
-              <label class="form-label" for="reservation_date">Date</label>
-              <input class="form-control" type="date" id="reservation_date" required>
+              <label class="form-label">End time</label>
+              <div class="d-flex gap-2" id="endTime"></div>
             </div>
           </div>
-
-          <div id="availability" class="alert alert-light border small d-none"></div>
-
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label" for="start_time">Start time</label>
-              <input class="form-control" type="time" id="start_time" required>
-            </div>
-            <div class="col-md-6 mb-3">
-              <label class="form-label" for="end_time">End time</label>
-              <input class="form-control" type="time" id="end_time" required>
-            </div>
-          </div>
+          <div id="timeHint" class="small mb-3"></div>
           <div class="mb-3">
             <label class="form-label" for="purpose">Purpose</label>
             <input class="form-control" id="purpose" maxlength="255" required>
           </div>
           <div class="mb-3">
-            <label class="form-label" for="equipment_needs">Equipment needs (optional)</label>
-            <input class="form-control" id="equipment_needs" maxlength="255" placeholder="e.g. 10 chairs">
+            <label class="form-label" for="equipment">Equipment needs (optional)</label>
+            <input class="form-control" id="equipment" maxlength="255" placeholder="e.g. 10 chairs">
           </div>
           <div class="mb-3">
-            <label class="form-label" for="supporting_doc">Supporting document (optional, JPG, PNG or PDF, up to 5 MB)</label>
-            <input class="form-control" type="file" id="supporting_doc" accept=".jpg,.jpeg,.png,.pdf">
+            <label class="form-label" for="supportingDoc">Supporting document (optional, JPG, PNG or PDF, up to 5 MB)</label>
+            <input class="form-control" type="file" id="supportingDoc" accept=".jpg,.jpeg,.png,.pdf">
           </div>
-          <button class="btn btn-primary" type="submit" id="submitBtn">Submit reservation</button>
+          <button class="btn btn-primary" type="submit">Submit reservation</button>
+          <button class="btn btn-outline-secondary" type="button" id="closeForm">Cancel</button>
         </form>
       </div>
     </div>
 
+    <!-- my reservations -->
     <div class="card shadow-sm">
       <div class="card-body">
         <h2 class="h6">My reservations</h2>
@@ -69,16 +120,11 @@
           <table class="table align-middle">
             <thead>
               <tr>
-                <th>Facility</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Purpose</th>
-                <th>Status</th>
-                <th>Admin notes</th>
-                <th></th>
+                <th>Facility</th><th>Date</th><th>Time</th><th>Purpose</th>
+                <th>Status</th><th>Admin notes</th><th></th>
               </tr>
             </thead>
-            <tbody id="reservationRows"></tbody>
+            <tbody id="myRows"></tbody>
           </table>
         </div>
       </div>
@@ -86,6 +132,13 @@
   </div>
 
   <script>
+    // all reservation routes live under this prefix (see server.js)
+    const R = '/api/resident';
+
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+                    'August', 'September', 'October', 'November', 'December'];
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
     const statusClass = {
       'Pending': 'bg-warning text-dark',
       'Approved': 'bg-success',
@@ -93,33 +146,54 @@
       'Cancelled': 'bg-secondary'
     };
 
-    function show(text, type) {
-      const box = document.getElementById('message');
+    const state = {
+      year: 0, month: 0,
+      facilityId: null, facilityName: '',
+      bookings: [], selectedDate: null, verified: false
+    };
+
+    function el(id) { return document.getElementById(id); }
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+
+    function dateStr(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
+
+    function fmt(t) {
+      const [h, m] = t.split(':').map(Number);
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      return h12 + ':' + pad(m) + ' ' + (h >= 12 ? 'PM' : 'AM');
+    }
+
+    function longDate(s) {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US',
+        { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function showMsg(box, text, type) {
       box.textContent = text;
       box.className = 'alert alert-' + type;
     }
 
-    function todayString() {
-      const d = new Date();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return d.getFullYear() + '-' + mm + '-' + dd;
-    }
-
+    // ---------- facilities and verification ----------
     async function checkVerification() {
       const res = await fetch('/api/profile');
       if (!res.ok) { window.location.href = '/'; return; }
       const p = await res.json();
-      const verified = p.verification_status === 'Verified';
-      document.getElementById('verifyWarning').classList.toggle('d-none', verified);
-      document.getElementById('submitBtn').disabled = !verified;
+      state.verified = p.verification_status === 'Verified';
+      el('verifyWarning').classList.toggle('d-none', state.verified);
+      el('reserveBtn').disabled = !state.verified;
     }
 
     async function loadFacilities() {
-      const res = await fetch('/api/facilities');
+      const res = await fetch(R + '/facilities');
       if (!res.ok) return;
       const facilities = await res.json();
-      const select = document.getElementById('facility_id');
+      const select = el('facility');
       select.innerHTML = '';
       facilities.forEach(f => {
         const opt = document.createElement('option');
@@ -127,40 +201,308 @@
         opt.textContent = f.facility_name;
         select.appendChild(opt);
       });
-      loadAvailability();
-    }
-
-    async function loadAvailability() {
-      const box = document.getElementById('availability');
-      const facility = document.getElementById('facility_id').value;
-      const date = document.getElementById('reservation_date').value;
-      if (!facility || !date) { box.classList.add('d-none'); return; }
-
-      const res = await fetch('/api/availability?facility_id=' + encodeURIComponent(facility) +
-                              '&date=' + encodeURIComponent(date));
-      if (!res.ok) { box.classList.add('d-none'); return; }
-      const slots = await res.json();
-
-      box.classList.remove('d-none');
-      if (slots.length === 0) {
-        box.textContent = 'No approved bookings on this date. The whole day is open.';
+      if (facilities.length > 0) {
+        state.facilityId = Number(select.value);
+        state.facilityName = select.options[select.selectedIndex].textContent;
+        await loadCalendar();
       } else {
-        box.textContent = 'Already booked: ' +
-          slots.map(s => s.start_time + ' to ' + s.end_time).join(', ');
+        el('calendar').textContent = 'No facilities are available right now.';
       }
     }
 
+    // ---------- calendar ----------
+    async function loadCalendar() {
+      if (!state.facilityId) return;
+      const url = R + '/reservations/calendar?facility_id=' + state.facilityId +
+                  '&year=' + state.year + '&month=' + state.month;
+      const res = await fetch(url);
+      if (res.status === 401) { window.location.href = '/'; return; }
+      state.bookings = res.ok ? await res.json() : [];
+      renderCalendar();
+      renderDayPanel();
+    }
+
+    function bookingsOn(ds) {
+      return state.bookings.filter(b => b.reservation_date === ds);
+    }
+
+    function renderCalendar() {
+      el('monthTitle').textContent = MONTHS[state.month - 1] + ' ' + state.year;
+
+      const now = new Date();
+      const atCurrentMonth = state.year === now.getFullYear() && state.month === now.getMonth() + 1;
+      el('prevMonth').disabled = atCurrentMonth;
+
+      const grid = el('calendar');
+      grid.innerHTML = '';
+
+      DAYS.forEach(name => {
+        const head = document.createElement('div');
+        head.className = 'cal-head';
+        head.textContent = name;
+        grid.appendChild(head);
+      });
+
+      const firstWeekday = new Date(state.year, state.month - 1, 1).getDay();
+      const daysInMonth = new Date(state.year, state.month, 0).getDate();
+      const today = todayStr();
+
+      for (let i = 0; i < firstWeekday; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-cell empty';
+        grid.appendChild(blank);
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const ds = dateStr(state.year, state.month, d);
+        const list = bookingsOn(ds);
+        const isPast = ds < today;
+
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell';
+        if (isPast) cell.classList.add('past');
+        if (ds === today) cell.classList.add('today');
+        if (ds === state.selectedDate) cell.classList.add('selected');
+
+        const day = document.createElement('div');
+        day.className = 'cal-day';
+        day.textContent = d;
+        cell.appendChild(day);
+
+        if (!isPast) {
+          const hasApproved = list.some(b => b.status === 'Approved');
+          const hasPending = list.some(b => b.status === 'Pending');
+          const label = document.createElement('div');
+          if (hasApproved) {
+            label.innerHTML = '';
+            label.textContent = 'Booked';
+            label.className = 'text-danger fw-semibold';
+          } else if (hasPending) {
+            label.textContent = 'Pending';
+            label.className = 'text-warning-emphasis fw-semibold';
+          } else {
+            label.textContent = 'Available';
+            label.className = 'avail';
+          }
+          cell.appendChild(label);
+        }
+
+        list.slice(0, 3).forEach(b => {
+          const slot = document.createElement('span');
+          slot.className = 'slot ' + (b.status === 'Approved' ? 'approved' : 'pending');
+          slot.textContent = fmt(b.start_time) + ' - ' + fmt(b.end_time);
+          cell.appendChild(slot);
+        });
+        if (list.length > 3) {
+          const more = document.createElement('span');
+          more.className = 'text-muted';
+          more.textContent = '+' + (list.length - 3) + ' more';
+          cell.appendChild(more);
+        }
+
+        if (!isPast) {
+          cell.addEventListener('click', () => {
+            state.selectedDate = ds;
+            el('formPanel').classList.add('d-none');
+            renderCalendar();
+            renderDayPanel();
+          });
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    function renderDayPanel() {
+      const panel = el('dayPanel');
+      if (!state.selectedDate) { panel.classList.add('d-none'); return; }
+      panel.classList.remove('d-none');
+
+      el('dayTitle').textContent = state.facilityName + ' · ' + longDate(state.selectedDate);
+
+      const list = el('dayList');
+      list.innerHTML = '';
+      const items = bookingsOn(state.selectedDate);
+
+      if (items.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'list-group-item px-0 text-muted';
+        li.textContent = 'No bookings on this date. The whole day is open.';
+        list.appendChild(li);
+        return;
+      }
+
+      items.forEach(b => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item px-0 d-flex justify-content-between';
+        const left = document.createElement('span');
+        left.textContent = fmt(b.start_time) + ' - ' + fmt(b.end_time) + (b.mine ? ' (yours)' : '');
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (b.status === 'Approved' ? 'bg-danger' : 'bg-warning text-dark');
+        badge.textContent = b.status === 'Approved' ? 'Booked' : 'Pending';
+        li.appendChild(left);
+        li.appendChild(badge);
+        list.appendChild(li);
+      });
+    }
+
+    function changeMonth(step) {
+      state.month += step;
+      if (state.month > 12) { state.month = 1; state.year++; }
+      if (state.month < 1) { state.month = 12; state.year--; }
+      state.selectedDate = null;
+      el('formPanel').classList.add('d-none');
+      loadCalendar();
+    }
+
+    // ---------- time selectors ----------
+    function buildTime(groupId, hour, minute, ampm) {
+      const group = el(groupId);
+      group.innerHTML = '';
+
+      const h = document.createElement('select');
+      h.className = 'form-select';
+      h.id = groupId + 'H';
+      h.setAttribute('aria-label', 'Hour');
+      for (let i = 1; i <= 12; i++) {
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = i;
+        h.appendChild(o);
+      }
+
+      const m = document.createElement('select');
+      m.className = 'form-select';
+      m.id = groupId + 'M';
+      m.setAttribute('aria-label', 'Minute');
+      for (let i = 0; i < 60; i += 5) {
+        const o = document.createElement('option');
+        o.value = pad(i);
+        o.textContent = pad(i);
+        m.appendChild(o);
+      }
+
+      const p = document.createElement('select');
+      p.className = 'form-select';
+      p.id = groupId + 'P';
+      p.setAttribute('aria-label', 'AM or PM');
+      ['AM', 'PM'].forEach(v => {
+        const o = document.createElement('option');
+        o.value = v;
+        o.textContent = v;
+        p.appendChild(o);
+      });
+
+      h.value = hour;
+      m.value = minute;
+      p.value = ampm;
+      [h, m, p].forEach(s => {
+        s.addEventListener('change', updateHint);
+        group.appendChild(s);
+      });
+    }
+
+    function readTime(groupId) {
+      const h = Number(el(groupId + 'H').value);
+      const m = el(groupId + 'M').value;
+      const ap = el(groupId + 'P').value;
+      let h24;
+      if (ap === 'AM') h24 = h === 12 ? 0 : h;
+      else h24 = h === 12 ? 12 : h + 12;
+      return pad(h24) + ':' + m;
+    }
+
+    function updateHint() {
+      const hint = el('timeHint');
+      const start = readTime('startTime');
+      const end = readTime('endTime');
+
+      if (start >= end) {
+        hint.className = 'small mb-3 text-danger';
+        hint.textContent = 'The end time must be after the start time.';
+        return;
+      }
+      const same = bookingsOn(state.selectedDate);
+      const approved = same.find(b => b.status === 'Approved' && start < b.end_time && end > b.start_time);
+      if (approved) {
+        hint.className = 'small mb-3 text-danger';
+        hint.textContent = 'This overlaps a booked slot (' + fmt(approved.start_time) + ' - ' +
+          fmt(approved.end_time) + '). The request will be rejected.';
+        return;
+      }
+      const pending = same.find(b => b.status === 'Pending' && start < b.end_time && end > b.start_time);
+      if (pending) {
+        hint.className = 'small mb-3 text-warning-emphasis';
+        hint.textContent = 'This overlaps a pending request (' + fmt(pending.start_time) + ' - ' +
+          fmt(pending.end_time) + '). The admin decides which one is approved.';
+        return;
+      }
+      hint.className = 'small mb-3 text-success';
+      hint.textContent = fmt(start) + ' - ' + fmt(end) + ' is open.';
+    }
+
+    // ---------- reserve this date ----------
+    el('reserveBtn').addEventListener('click', () => {
+      if (!state.selectedDate) return;
+      el('formTitle').textContent = 'Reserve ' + state.facilityName + ' on ' + longDate(state.selectedDate);
+      el('formMessage').className = 'alert d-none';
+      el('purpose').value = '';
+      el('equipment').value = '';
+      el('supportingDoc').value = '';
+      buildTime('startTime', 9, '00', 'AM');
+      buildTime('endTime', 10, '00', 'AM');
+      updateHint();
+      el('formPanel').classList.remove('d-none');
+      el('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    el('closeForm').addEventListener('click', () => el('formPanel').classList.add('d-none'));
+
+    el('reservationForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const start = readTime('startTime');
+      const end = readTime('endTime');
+      if (start >= end) {
+        showMsg(el('formMessage'), 'The end time must be after the start time.', 'danger');
+        return;
+      }
+
+      const form = new FormData();
+      form.append('facility_id', state.facilityId);
+      form.append('reservation_date', state.selectedDate);
+      form.append('start_time', start);
+      form.append('end_time', end);
+      form.append('purpose', el('purpose').value);
+      form.append('equipment_needs', el('equipment').value);
+      const file = el('supportingDoc').files[0];
+      if (file) form.append('supporting_doc', file);
+
+      try {
+        const res = await fetch(R + '/reservations', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+        showMsg(el('pageMessage'), data.message, 'success');
+        el('formPanel').classList.add('d-none');
+        await loadCalendar();
+        await loadMine();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        showMsg(el('formMessage'), err.message, 'danger');
+        loadCalendar();
+      }
+    });
+
+    // ---------- my reservations ----------
     function cell(text) {
       const td = document.createElement('td');
       td.textContent = text || '';
       return td;
     }
 
-    async function loadReservations() {
-      const res = await fetch('/api/reservations');
+    async function loadMine() {
+      const res = await fetch(R + '/reservations');
       if (!res.ok) return;
       const rows = await res.json();
-      const body = document.getElementById('reservationRows');
+      const body = el('myRows');
       body.innerHTML = '';
 
       if (rows.length === 0) {
@@ -177,7 +519,7 @@
         const tr = document.createElement('tr');
         tr.appendChild(cell(r.facility_name));
         tr.appendChild(cell(r.reservation_date));
-        tr.appendChild(cell(r.start_time + ' to ' + r.end_time));
+        tr.appendChild(cell(fmt(r.start_time) + ' - ' + fmt(r.end_time)));
         tr.appendChild(cell(r.purpose));
 
         const statusTd = document.createElement('td');
@@ -205,51 +547,36 @@
     async function cancelReservation(id) {
       if (!confirm('Cancel this reservation request?')) return;
       try {
-        const res = await fetch('/api/reservations/' + id + '/cancel', { method: 'POST' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        show(data.message, 'success');
-        loadReservations();
+        const res = await fetch(R + '/reservations/' + id + '/cancel', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+        showMsg(el('pageMessage'), data.message, 'success');
+        await loadMine();
+        await loadCalendar();
       } catch (err) {
-        show(err.message, 'danger');
+        showMsg(el('pageMessage'), err.message, 'danger');
       }
     }
 
-    document.getElementById('facility_id').addEventListener('change', loadAvailability);
-    document.getElementById('reservation_date').addEventListener('change', loadAvailability);
-    document.getElementById('reservation_date').min = todayString();
-
-    document.getElementById('reservationForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = new FormData();
-      ['facility_id', 'reservation_date', 'start_time', 'end_time', 'purpose', 'equipment_needs']
-        .forEach(id => form.append(id, document.getElementById(id).value));
-      const file = document.getElementById('supporting_doc').files[0];
-      if (file) form.append('supporting_doc', file);
-
-      try {
-        const res = await fetch('/api/reservations', { method: 'POST', body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        show(data.message, 'success');
-        ['start_time', 'end_time', 'purpose', 'equipment_needs', 'supporting_doc']
-          .forEach(id => { document.getElementById(id).value = ''; });
-        loadReservations();
-        loadAvailability();
-      } catch (err) {
-        show(err.message, 'danger');
-        loadAvailability();
-      }
+    // ---------- start ----------
+    el('facility').addEventListener('change', () => {
+      const select = el('facility');
+      state.facilityId = Number(select.value);
+      state.facilityName = select.options[select.selectedIndex].textContent;
+      state.selectedDate = null;
+      el('formPanel').classList.add('d-none');
+      loadCalendar();
     });
+    el('prevMonth').addEventListener('click', () => changeMonth(-1));
+    el('nextMonth').addEventListener('click', () => changeMonth(1));
 
-    document.getElementById('logout').addEventListener('click', async () => {
-      await fetch('/api/logout', { method: 'POST' });
-      window.location.href = '/';
-    });
+    const now = new Date();
+    state.year = now.getFullYear();
+    state.month = now.getMonth() + 1;
 
     checkVerification();
     loadFacilities();
-    loadReservations();
+    loadMine();
   </script>
 </body>
 </html>

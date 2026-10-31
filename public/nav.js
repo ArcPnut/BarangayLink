@@ -24,6 +24,11 @@
     '</nav>'
   );
 
+  document.getElementById('logout').addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+    
   fetch('/api/notifications/unread-count')
     .then(r => r.ok ? r.json() : { count: 0 })
     .then(data => {
