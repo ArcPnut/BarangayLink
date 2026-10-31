@@ -196,6 +196,12 @@ app.get('/admin/reservations', pageRole('admin'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'admin-reservations.html'));
 });
 
+app.use('/api/admin', require('./routes/adminCatalog'));
+
+app.get(['/admin/document-types', '/admin/facilities'], pageRole('admin'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'admin-catalog.html'));
+});
+
 app.get('/admin/requests', pageRole('admin'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'admin-requests.html'));
 });

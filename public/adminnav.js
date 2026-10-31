@@ -3,7 +3,9 @@
     ['/admin', 'Dashboard'],
     ['/admin/accounts', 'Accounts'],
     ['/admin/requests', 'Document Requests'],
-    ['/admin/reservations', 'Reservations']
+    ['/admin/reservations', 'Reservations'],
+    ['/admin/document-types', 'Document Types'],
+    ['/admin/facilities', 'Facilities']
   ];
   const path = window.location.pathname;
 
