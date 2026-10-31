@@ -3,20 +3,220 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BarangayLink | Admin</title>
+  <title>BarangayLink | Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .count-card { transition: box-shadow .15s; }
+    .count-card:hover { box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .15) !important; }
+    .count-number { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+    .chart-box { position: relative; height: 260px; }
+  </style>
 </head>
 <body class="bg-light">
   <script src="/adminnav.js"></script>
-  <div class="container mt-4">
-    <h1 class="h4" id="welcome">Dashboard</h1>
-    <p class="text-muted">Statistics and charts will be added here.</p>
+
+  <div class="container-fluid my-4 px-4">
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+      <div>
+        <h1 class="h4 mb-0">Dashboard</h1>
+        <div class="text-muted small" id="today"></div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="form-label mb-0 small" for="month">Month</label>
+        <input type="month" class="form-control form-control-sm" id="month" style="width: 160px;">
+        <button class="btn btn-outline-secondary btn-sm" id="refresh">Refresh</button>
+      </div>
+    </div>
+
+    <div id="pageMessage" class="alert alert-danger d-none"></div>
+
+    <!-- count cards -->
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-lg-3">
+        <a class="text-reset text-decoration-none" href="/admin/accounts">
+          <div class="card shadow-sm count-card h-100"><div class="card-body">
+            <div class="count-number" id="cAccounts">-</div>
+            <div class="text-muted small">Pending accounts</div>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a class="text-reset text-decoration-none" href="/admin/requests">
+          <div class="card shadow-sm count-card h-100"><div class="card-body">
+            <div class="count-number" id="cDocuments">-</div>
+            <div class="text-muted small">Pending documents</div>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a class="text-reset text-decoration-none" href="/admin/reservations">
+          <div class="card shadow-sm count-card h-100"><div class="card-body">
+            <div class="count-number" id="cReservations">-</div>
+            <div class="text-muted small">Pending reservations</div>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a class="text-reset text-decoration-none" href="/admin/requests">
+          <div class="card shadow-sm count-card h-100"><div class="card-body">
+            <div class="count-number" id="cReady">-</div>
+            <div class="text-muted small">Ready for pickup</div>
+          </div></div>
+        </a>
+      </div>
+    </div>
+
+    <!-- charts -->
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100"><div class="card-body">
+          <h2 class="h6 mb-0">Requests per document type</h2>
+          <div class="text-muted small mb-2" id="docCaption"></div>
+          <div class="chart-box">
+            <canvas id="docChart"></canvas>
+            <div id="docEmpty" class="text-muted d-none">No requests this month.</div>
+          </div>
+        </div></div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100"><div class="card-body">
+          <h2 class="h6 mb-0">Facility usage</h2>
+          <div class="text-muted small mb-2" id="facCaption"></div>
+          <div class="chart-box">
+            <canvas id="facChart"></canvas>
+            <div id="facEmpty" class="text-muted d-none">No approved bookings this month.</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- work queue -->
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="h6">Work queue overview</h2>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead><tr><th>Queue</th><th>Oldest pending</th><th>Next step</th></tr></thead>
+            <tbody id="queueRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script>
-    fetch('/api/me').then(r => r.json()).then(me => {
-      document.getElementById('welcome').textContent = 'Admin dashboard · ' + me.email;
-    });
+    const charts = { doc: null, fac: null };
+
+    function el(id) { return document.getElementById(id); }
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function monthLabel(value) {
+      const [y, m] = value.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    function drawBar(key, canvasId, emptyId, rows, color) {
+      if (charts[key]) { charts[key].destroy(); charts[key] = null; }
+      const hasData = rows.some(r => r.total > 0);
+      el(canvasId).classList.toggle('d-none', !hasData);
+      el(emptyId).classList.toggle('d-none', hasData);
+      if (!hasData) return;
+
+      charts[key] = new Chart(el(canvasId), {
+        type: 'bar',
+        data: {
+          labels: rows.map(r => r.label),
+          datasets: [{ data: rows.map(r => r.total), backgroundColor: color, borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    function renderQueues(queues) {
+      const body = el('queueRows');
+      body.innerHTML = '';
+      const defs = [
+        ['Accounts', queues.accounts, 'Review ID / verify', '/admin/accounts'],
+        ['Documents', queues.documents, 'Review requests', '/admin/requests'],
+        ['Reservations', queues.reservations, 'Review reservations', '/admin/reservations']
+      ];
+
+      defs.forEach(([name, q, step, href]) => {
+        const tr = document.createElement('tr');
+
+        const nameTd = document.createElement('td');
+        nameTd.className = 'fw-semibold';
+        nameTd.textContent = name + ' ';
+        const count = document.createElement('span');
+        count.className = 'badge ' + (q.total > 0 ? 'bg-warning text-dark' : 'bg-secondary');
+        count.textContent = q.total;
+        nameTd.appendChild(count);
+        tr.appendChild(nameTd);
+
+        const refTd = document.createElement('td');
+        if (q.items.length === 0) {
+          refTd.textContent = 'Nothing waiting.';
+          refTd.className = 'text-muted';
+        } else {
+          refTd.textContent = q.items.join(' · ') +
+            (q.total > q.items.length ? ' · +' + (q.total - q.items.length) + ' more' : '');
+        }
+        tr.appendChild(refTd);
+
+        const stepTd = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = href;
+        link.textContent = step;
+        stepTd.appendChild(link);
+        tr.appendChild(stepTd);
+
+        body.appendChild(tr);
+      });
+    }
+
+    async function loadDashboard() {
+      const month = el('month').value;
+      const res = await fetch('/api/admin/dashboard?month=' + encodeURIComponent(month));
+      if (res.status === 401) { window.location.href = '/'; return; }
+      if (!res.ok) {
+        const box = el('pageMessage');
+        box.textContent = 'Could not load the dashboard. Please try again.';
+        box.classList.remove('d-none');
+        return;
+      }
+      el('pageMessage').classList.add('d-none');
+      const data = await res.json();
+
+      el('cAccounts').textContent = data.counts.pending_accounts;
+      el('cDocuments').textContent = data.counts.pending_documents;
+      el('cReservations').textContent = data.counts.pending_reservations;
+      el('cReady').textContent = data.counts.ready_for_pickup;
+
+      const label = monthLabel(data.month);
+      el('docCaption').textContent = label + ' · cancelled requests not counted';
+      el('facCaption').textContent = label + ' · approved bookings';
+
+      drawBar('doc', 'docChart', 'docEmpty', data.requestsPerType, '#0d6efd');
+      drawBar('fac', 'facChart', 'facEmpty', data.facilityUsage, '#198754');
+      renderQueues(data.queues);
+    }
+
+    const now = new Date();
+    el('today').textContent = now.toLocaleDateString('en-US',
+      { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    el('month').value = now.getFullYear() + '-' + pad(now.getMonth() + 1);
+
+    el('month').addEventListener('change', () => { if (el('month').value) loadDashboard(); });
+    el('refresh').addEventListener('click', loadDashboard);
+
+    loadDashboard();
   </script>
 </body>
 </html>

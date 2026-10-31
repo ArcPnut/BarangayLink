@@ -202,6 +202,8 @@ app.get(['/admin/document-types', '/admin/facilities'], pageRole('admin'), (req,
   res.sendFile(path.join(__dirname, 'views', 'admin-catalog.html'));
 });
 
+app.use('/api/admin', require('./routes/adminDashboard'));
+
 app.get('/admin/requests', pageRole('admin'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'admin-requests.html'));
 });
