@@ -155,6 +155,11 @@
     function el(id) { return document.getElementById(id); }
     function pad(n) { return String(n).padStart(2, '0'); }
 
+    function nowStr() {
+      const d = new Date();
+      return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    
     function todayStr() {
       const d = new Date();
       return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -421,6 +426,11 @@
         hint.textContent = 'The end time must be after the start time.';
         return;
       }
+      if (state.selectedDate === todayStr() && start <= nowStr()) {
+        hint.className = 'small mb-3 text-danger';
+        hint.textContent = 'That start time has already passed. Choose a later time.';
+        return;
+      }
       const same = bookingsOn(state.selectedDate);
       const approved = same.find(b => b.status === 'Approved' && start < b.end_time && end > b.start_time);
       if (approved) {
@@ -463,6 +473,10 @@
       const end = readTime('endTime');
       if (start >= end) {
         showMsg(el('formMessage'), 'The end time must be after the start time.', 'danger');
+        return;
+      }
+      if (state.selectedDate === todayStr() && start <= nowStr()) {
+        showMsg(el('formMessage'), 'That start time has already passed. Choose a later time.', 'danger');
         return;
       }
 

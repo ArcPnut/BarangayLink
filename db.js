@@ -62,13 +62,22 @@ module.exports = {
   query: (sql, params) => run(pool, sql, params),
   async getConnection() {
     const client = await pool.connect();
+    let inTransaction = false;
     return {
       execute: (sql, params) => run(client, sql, params),
       query: (sql, params) => run(client, sql, params),
-      beginTransaction: () => client.query('BEGIN'),
-      commit: () => client.query('COMMIT'),
-      rollback: () => client.query('ROLLBACK'),
-      release: () => client.release()
+      beginTransaction: async () => { await client.query('BEGIN'); inTransaction = true; },
+      commit: async () => { await client.query('COMMIT'); inTransaction = false; },
+      rollback: async () => { await client.query('ROLLBACK'); inTransaction = false; },
+      release: () => {
+        if (inTransaction) {
+          // a transaction was left open: undo it before giving the connection back
+          inTransaction = false;
+          client.query('ROLLBACK').then(() => client.release(), err => client.release(err));
+        } else {
+          client.release();
+        }
+      }
     };
   },
   end: () => pool.end()

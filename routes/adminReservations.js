@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { sendStoredFile } = require('../storage');
 
 const router = express.Router();
 
@@ -153,6 +154,23 @@ router.post('/reservations/:id/status', async (req, res) => {
     connection.release();
     console.error(err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+// open a reservation's supporting document
+router.get('/reservations/:id/doc', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) return res.status(400).send('Invalid reservation.');
+  try {
+    const [rows] = await pool.execute(
+      'SELECT supporting_doc_path FROM reservations WHERE reservation_id = ?',
+      [id]
+    );
+    if (!rows[0] || !rows[0].supporting_doc_path) return res.status(404).send('No document uploaded.');
+    await sendStoredFile(res, rows[0].supporting_doc_path);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Something went wrong.');
   }
 });
 

@@ -12,6 +12,13 @@ function todayString() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date());
 }
 
+// current time in Manila as HH:MM
+function nowTimeString() {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).format(new Date());
+}
+
 function validDate(s) {
   if (typeof s !== 'string' || !DATE_RE.test(s)) return false;
   const [y, m, d] = s.split('-').map(Number);
@@ -157,6 +164,9 @@ router.post('/reservations', requireResident, (req, res) => {
       return fail(400, 'Choose a start time and an end time.');
     }
     if (start_time >= end_time) return fail(400, 'The end time must be after the start time.');
+    if (reservation_date === todayString() && start_time <= nowTimeString()) {
+      return fail(400, 'That start time has already passed. Choose a later time.');
+    }
     if (typeof purpose !== 'string' || !purpose.trim()) return fail(400, 'Enter the purpose.');
     if (purpose.trim().length > 255) return fail(400, 'Purpose is too long (max 255 characters).');
     if (typeof equipment_needs === 'string' && equipment_needs.trim().length > 255) {
