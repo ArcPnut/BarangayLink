@@ -1,9 +1,9 @@
 const path = require('path');
 const express = require('express');
 const pool = require('../db');
+const { sendStoredFile } = require('../storage');
 
 const router = express.Router();
-const idDir = path.join(__dirname, '..', 'uploads', 'ids');
 
 // every route in this file is admin only
 router.use((req, res, next) => {
@@ -39,7 +39,7 @@ router.get('/accounts', async (req, res) => {
   try {
     const [rows] = await pool.execute(
       `SELECT r.resident_id, r.first_name, r.last_name, r.birthdate,
-              TIMESTAMPDIFF(YEAR, r.birthdate, CURDATE()) AS age,
+              DATE_PART('year', AGE((NOW() AT TIME ZONE 'Asia/Manila')::date, r.birthdate))::int AS age,
               r.address, r.contact_no, r.verification_status, r.verification_remarks,
               (r.id_file_path IS NOT NULL) AS has_id,
               u.email, u.is_active, u.termination_reason, u.date_created
@@ -63,10 +63,7 @@ router.get('/accounts/:id/id-file', async (req, res) => {
       [id]
     );
     if (!rows[0] || !rows[0].id_file_path) return res.status(404).send('No ID uploaded.');
-    const file = path.join(idDir, path.basename(rows[0].id_file_path));
-    res.sendFile(file, (err) => {
-      if (err && !res.headersSent) res.status(404).send('File not found.');
-    });
+    await sendStoredFile(res, rows[0].id_file_path);
   } catch (err) {
     console.error(err);
     res.status(500).send('Something went wrong.');

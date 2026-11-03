@@ -14,8 +14,7 @@ router.use((req, res, next) => {
 const pad = n => String(n).padStart(2, '0');
 
 function currentMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date()).slice(0, 7);
 }
 
 function fullName(r) {
