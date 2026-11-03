@@ -233,6 +233,16 @@
       addDetail(list, 'Time', r.start_time.slice(0, 5) + ' - ' + r.end_time.slice(0, 5));
       addDetail(list, 'Purpose', r.purpose);
       addDetail(list, 'Equipment', r.equipment_needs);
+        if (r.supporting_doc_path) {
+          const link = document.createElement('a');
+          link.href = '/api/admin/reservations/' + r.reservation_id + '/doc';
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = 'Open document (new tab)';
+        addDetail(list, 'Attachment', link);
+      } else {
+        addDetail(list, 'Attachment', 'None');
+      }
       addDetail(list, 'Submitted', r.requested_at.slice(0, 16));
       addDetail(list, 'Status', badge(r.status));
       addDetail(list, 'Current note', r.admin_notes);
