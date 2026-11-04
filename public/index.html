@@ -29,7 +29,14 @@
     </div>
   </div>
 
+  <script src="/errors.js"></script>
+  
   <script>
+        if (new URLSearchParams(window.location.search).has('expired')) {
+      const note = document.getElementById('message');
+      note.textContent = 'Your session has ended. Please log in again.';
+      note.classList.remove('d-none');
+    }
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const box = document.getElementById('message');
@@ -51,7 +58,6 @@
         box.classList.remove('d-none');
       }
     });
-    <script src="/errors.js"></script>
   </script>
 </body>
 </html>
