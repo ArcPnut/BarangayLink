@@ -216,6 +216,12 @@ app.get(['/admin/document-types', '/admin/facilities'], pageRole('admin'), (req,
   res.sendFile(path.join(__dirname, 'views', 'admin-catalog.html'));
 });
 
+// ---------- unknown addresses ----------
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found.' });
+  res.status(404).send('Page not found. <a href="/">Go to the login page</a>');
+});
+
 // ---------- last resort error handler ----------
 app.use((err, req, res, next) => {
   console.error(err);

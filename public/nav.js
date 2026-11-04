@@ -1,3 +1,4 @@
+document.write('<script src="/errors.js"><\/script>');
 (function () {
   const links = [
     ['/resident', 'Home'],
