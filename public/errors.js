@@ -41,7 +41,7 @@
     // session ended: go back to the login page (but not for a wrong password)
     if (isApi && res.status === 401 && url !== '/api/login' && window.location.pathname !== '/') {
       window.location.href = '/?expired=1';
-      return res;
+      return new Promise(() => {});
     }
 
     if (res.status >= 500) {
