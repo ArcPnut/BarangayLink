@@ -118,6 +118,9 @@
     }
 
     function drawBar(key, canvasId, emptyId, rows, color) {
+      const dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+      Chart.defaults.color = dark ? '#dee2e6' : '#495057';
+      Chart.defaults.borderColor = dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)';
       if (charts[key]) { charts[key].destroy(); charts[key] = null; }
       const hasData = rows.some(r => r.total > 0);
       el(canvasId).classList.toggle('d-none', !hasData);
@@ -218,6 +221,7 @@
     el('refresh').addEventListener('click', loadDashboard);
 
     loadDashboard();
+    window.addEventListener('themechange', loadDashboard);
   </script>
 </body>
 </html>

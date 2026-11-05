@@ -1,5 +1,7 @@
 // Shared error handling: every fetch() call on every page goes through this.
 (function () {
+  if (window.fetchWrapped) return;
+  window.fetchWrapped = true;
   const originalFetch = window.fetch.bind(window);
 
   function banner(text) {
@@ -62,4 +64,57 @@
 
     return res;
   };
+})();
+
+// ---- dark mode, remembered in Web Storage ----
+(function () {
+  if (window.themeReady) return;
+  window.themeReady = true;
+  function stored() {
+    try { return localStorage.getItem('theme'); } catch (e) { return null; }
+  }
+
+  function current() {
+    return document.documentElement.getAttribute('data-bs-theme') || 'light';
+  }
+
+  const start = stored() ||
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-bs-theme', start);
+
+  // Bootstrap's bg-light stays light in dark mode, so make it follow the theme
+  const style = document.createElement('style');
+  style.textContent = '[data-bs-theme="dark"] .bg-light { background-color: var(--bs-body-bg) !important; }';
+  document.head.appendChild(style);
+
+  function label(button) {
+    button.textContent = current() === 'dark' ? 'Light mode' : 'Dark mode';
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-bs-theme', theme);
+    try { localStorage.setItem('theme', theme); } catch (e) { /* storage blocked */ }
+    const button = document.getElementById('themeToggle');
+    if (button) label(button);
+    window.dispatchEvent(new Event('themechange'));
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('themeToggle')) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.id = 'themeToggle';
+    button.setAttribute('aria-label', 'Switch between light and dark mode');
+    label(button);
+    button.addEventListener('click', () => setTheme(current() === 'dark' ? 'light' : 'dark'));
+
+    const logout = document.getElementById('logout');
+    if (logout) {
+      button.className = 'btn btn-outline-light btn-sm me-2';
+      logout.parentNode.insertBefore(button, logout);
+    } else {
+      button.className = 'btn btn-outline-secondary btn-sm position-fixed top-0 end-0 m-3';
+      document.body.appendChild(button);
+    }
+  });
 })();
