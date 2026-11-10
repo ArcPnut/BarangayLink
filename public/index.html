@@ -136,7 +136,7 @@
   <script src="/board.js"></script>
   <script>
     const SITE = window.SITE || { hall: {} };
-    const hallBits = [SITE.hall && SITE.hall.hours, SITE.hall && SITE.hall.phone].filter(Boolean);
+    const hallBits = [SITE.hall && SITE.hall.hours, SITE.hall && SITE.hall.phone, SITE.hall && SITE.hall.address].filter(Boolean);
     document.getElementById('hallLine').textContent =
       hallBits.length ? 'Barangay hall: ' + hallBits.join('  ·  ') : '';
 
