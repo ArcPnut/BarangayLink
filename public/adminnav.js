@@ -6,7 +6,8 @@ document.write('<script src="/errors.js"><\/script>');
     ['/admin/requests', 'Document Requests'],
     ['/admin/reservations', 'Reservations'],
     ['/admin/document-types', 'Document Types'],
-    ['/admin/facilities', 'Facilities']
+    ['/admin/facilities', 'Facilities'],
+    ['/admin/board', 'Herald']
   ];
   const path = window.location.pathname;
 

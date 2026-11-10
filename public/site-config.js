@@ -3,8 +3,8 @@ window.SITE = {
   barangayName: 'Your Barangay Name',
   place: 'City or municipality',
   hall: {
-    hours: 'Mon to Fri, 8 AM to 5 PM',
-    phone: 'Hotline number here',
-    address: 'Hall address here'
+    hours: 'Mon to Fri, 24/7',
+    phone: '0000-000-0000',
+    address: '123 Main St. Sta. Cruz, Manila'
   }
 };
