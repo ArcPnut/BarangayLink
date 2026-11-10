@@ -170,6 +170,9 @@ app.get('/api/me', requireLogin, async (req, res) => {
   }
 });
 
+// ---------- public routes (no login needed) ----------
+app.use('/api/public', require('./routes/public'));
+
 // ---------- resident routes ----------
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api', require('./routes/requests'));

@@ -37,6 +37,12 @@
 
     <div class="row g-3">
       <div class="col-lg-8">
+          <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Announcements</h2>
+            <div id="announcementsBox"><div class="text-body-secondary small py-2">Loading...</div></div>
+          </div>
+        </div>
 
         <div class="card shadow-sm mb-3">
           <div class="card-body">
@@ -61,6 +67,12 @@
       </div>
 
       <div class="col-lg-4">
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Upcoming events</h2>
+            <div id="eventsBox"><div class="text-body-secondary small py-2">Loading...</div></div>
+          </div>
+        </div>
 
         <div class="card shadow-sm mb-3">
           <div class="card-body">
@@ -83,13 +95,11 @@
     </div>
   </main>
 
+  <script src="/site-config.js"></script>
+  <script src="/board.js"></script>
   <script>
     // barangay details
-    const HALL = {
-      hours: 'Mon to Fri, 8 AM to 5 PM',
-      phone: '0000-000-0000',
-      address: '123 Main St. Sta. Cruz, Manila'
-    };
+    const HALL = (window.SITE && window.SITE.hall) || { hours: '', phone: '', address: '' };
 
     const statusClass = {
       'Pending': 'bg-warning text-dark',
