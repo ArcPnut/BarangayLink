@@ -170,6 +170,9 @@ app.get('/api/me', requireLogin, async (req, res) => {
   }
 });
 
+// ---------- public routes (no login needed) ----------
+app.use('/api/public', require('./routes/public'));
+
 // ---------- resident routes ----------
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api', require('./routes/requests'));
@@ -182,6 +185,7 @@ app.use('/api/admin', require('./routes/adminRequests'));
 app.use('/api/admin', require('./routes/adminReservations'));
 app.use('/api/admin', require('./routes/adminCatalog'));
 app.use('/api/admin', require('./routes/adminDashboard'));
+app.use('/api/admin', require('./routes/adminBoard'))
 
 // ---------- protected pages ----------
 app.get('/resident', pageRole('resident'), (req, res) => {
@@ -214,6 +218,9 @@ app.get('/admin/reservations', pageRole('admin'), (req, res) => {
 });
 app.get(['/admin/document-types', '/admin/facilities'], pageRole('admin'), (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'admin-catalog.html'));
+});
+app.get('/admin/board', pageRole('admin'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'admin-board.html'));
 });
 
 // ---------- unknown addresses ----------

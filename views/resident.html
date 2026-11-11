@@ -5,65 +5,102 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BarangayLink | Home</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="/errors.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    .list-row { padding: .65rem 0; }
+    .list-row + .list-row { border-top: 1px solid var(--bs-border-color); }
+    .list-row .text-box { min-width: 0; }
+    .notif-row { cursor: pointer; border-radius: .5rem; padding-left: .5rem; padding-right: .5rem; margin-left: -.5rem; margin-right: -.5rem; }
+    .notif-row:hover { background: var(--bs-tertiary-bg); }
+    .hall-row { display: flex; gap: .6rem; padding: .35rem 0; }
+    .hall-row i { color: var(--bs-secondary-color); }
+  </style>
 </head>
 <body class="bg-light">
   <script src="/nav.js"></script>
 
-  <div class="container my-4" style="max-width: 900px;">
-    <h1 class="h4 mb-3" id="welcome">Welcome</h1>
+  <main class="container py-4" style="max-width: 1200px;">
 
-    <div id="banner" class="alert d-none"></div>
-    <div id="unread" class="alert alert-primary d-none"></div>
-
-    <div class="row g-3 mb-4">
-      <div class="col-md-6">
-        <div class="card shadow-sm h-100">
-          <div class="card-body">
-            <h2 class="h6">Request a document</h2>
-            <p class="text-muted small">Barangay clearance, certificate of residency and more.</p>
-            <a class="btn btn-primary btn-sm" href="/resident/requests">Request a document</a>
-          </div>
-        </div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h1 class="h4 mb-0" id="greeting">Welcome</h1>
+        <span class="badge rounded-pill d-none" id="statusBadge"></span>
       </div>
-      <div class="col-md-6">
-        <div class="card shadow-sm h-100">
-          <div class="card-body">
-            <h2 class="h6">Reserve a facility</h2>
-            <p class="text-muted small">Check availability and book the covered court or meeting room.</p>
-            <a class="btn btn-primary btn-sm" href="/resident/reservations">Reserve a facility</a>
-          </div>
-        </div>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="/resident/requests">Request a document</a>
+        <a class="btn btn-outline-secondary" href="/resident/reservations">Reserve a facility</a>
       </div>
     </div>
+
+    <div id="verifyBanner" class="alert d-none mb-3"></div>
+    <div id="attention" class="d-grid gap-2 mb-3"></div>
 
     <div class="row g-3">
-      <div class="col-md-6">
-        <div class="card shadow-sm h-100">
+      <div class="col-lg-8">
+          <div class="card shadow-sm mb-3">
           <div class="card-body">
-            <div class="d-flex justify-content-between">
-              <h2 class="h6">Latest document requests</h2>
+            <h2 class="h6 mb-2">Announcements</h2>
+            <div id="announcementsBox"><div class="text-body-secondary small py-2">Loading...</div></div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h2 class="h6 mb-0">Document Requests</h2>
               <a class="small" href="/resident/requests">View all</a>
             </div>
-            <ul id="recentRequests" class="list-group list-group-flush"></ul>
+            <div id="requestList"><div class="text-body-secondary small py-2">Loading...</div></div>
           </div>
         </div>
-      </div>
-      <div class="col-md-6">
-        <div class="card shadow-sm h-100">
+
+        <div class="card shadow-sm">
           <div class="card-body">
-            <div class="d-flex justify-content-between">
-              <h2 class="h6">Upcoming reservations</h2>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h2 class="h6 mb-0">Upcoming Reservations</h2>
               <a class="small" href="/resident/reservations">View all</a>
             </div>
-            <ul id="upcoming" class="list-group list-group-flush"></ul>
+            <div id="reservationList"><div class="text-body-secondary small py-2">Loading...</div></div>
           </div>
         </div>
+
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Upcoming events</h2>
+            <div id="eventsBox"><div class="text-body-secondary small py-2">Loading...</div></div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h2 class="h6 mb-0">Recent Notifications</h2>
+              <a class="small" href="/resident/notifications">View all</a>
+            </div>
+            <div id="notificationList"><div class="text-body-secondary small py-2">Loading...</div></div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Barangay Hall</h2>
+            <div id="hallInfo"></div>
+          </div>
+        </div>
+
       </div>
     </div>
-  </div>
+  </main>
 
+  <script src="/site-config.js"></script>
+  <script src="/board.js"></script>
   <script>
+    // barangay details
+    const HALL = (window.SITE && window.SITE.hall) || { hours: '', phone: '', address: '' };
+
     const statusClass = {
       'Pending': 'bg-warning text-dark',
       'Processing': 'bg-info text-dark',
@@ -75,123 +112,278 @@
       'Cancelled': 'bg-secondary'
     };
 
-    function todayString() {
-      const d = new Date();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return d.getFullYear() + '-' + mm + '-' + dd;
+    function el(id) { return document.getElementById(id); }
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function dateStr(d) {
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
     }
 
-    function addRow(list, title, subtitle, status) {
-      const li = document.createElement('li');
-      li.className = 'list-group-item px-0 d-flex justify-content-between align-items-start';
+    function fmtTime(t) {
+      const [h, m] = t.split(':').map(Number);
+      return (h % 12 === 0 ? 12 : h % 12) + ':' + pad(m) + ' ' + (h >= 12 ? 'PM' : 'AM');
+    }
 
-      const left = document.createElement('div');
+    function fmtDate(s) {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function greeting() {
+      const h = new Date().getHours();
+      if (h < 12) return 'Good morning';
+      if (h < 18) return 'Good afternoon';
+      return 'Good evening';
+    }
+
+    async function getJson(url) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function badge(status) {
+      const span = document.createElement('span');
+      span.className = 'badge ' + (statusClass[status] || 'bg-secondary');
+      span.textContent = status;
+      return span;
+    }
+
+    function row(title, subtitle, status, note) {
+      const div = document.createElement('div');
+      div.className = 'list-row d-flex justify-content-between align-items-start gap-3';
+
+      const box = document.createElement('div');
+      box.className = 'text-box';
       const t = document.createElement('div');
+      t.className = 'fw-medium';
       t.textContent = title;
-      const s = document.createElement('small');
-      s.className = 'text-muted';
+      const s = document.createElement('div');
+      s.className = 'small text-body-secondary';
       s.textContent = subtitle;
-      left.appendChild(t);
-      left.appendChild(s);
-
-      const badge = document.createElement('span');
-      badge.className = 'badge ' + (statusClass[status] || 'bg-secondary');
-      badge.textContent = status;
-
-      li.appendChild(left);
-      li.appendChild(badge);
-      list.appendChild(li);
+      box.append(t, s);
+      if (note) {
+        const n = document.createElement('div');
+        n.className = 'small fst-italic text-body-secondary';
+        n.textContent = 'Note: ' + note;
+        box.appendChild(n);
+      }
+      div.appendChild(box);
+      if (status) div.appendChild(badge(status));
+      return div;
     }
 
-    function addEmpty(list, text) {
-      const li = document.createElement('li');
-      li.className = 'list-group-item px-0 text-muted';
-      li.textContent = text;
-      list.appendChild(li);
+    function addMessage(container, message, linkText, href) {
+      const wrap = document.createElement('div');
+      wrap.className = 'py-3 text-center';
+      const p = document.createElement('p');
+      p.className = 'text-body-secondary mb-2';
+      p.textContent = message;
+      wrap.appendChild(p);
+      if (href) {
+        const a = document.createElement('a');
+        a.href = href;
+        a.className = 'btn btn-outline-primary btn-sm';
+        a.textContent = linkText;
+        wrap.appendChild(a);
+      }
+      container.appendChild(wrap);
     }
 
-    async function loadProfile() {
-      const res = await fetch('/api/profile');
-      if (!res.ok) { window.location.href = '/'; return; }
-      const p = await res.json();
+    function failed(container) {
+      container.innerHTML = '';
+      addMessage(container, "Couldn't load this right now. Try refreshing the page.");
+    }
 
-      document.getElementById('welcome').textContent = 'Welcome, ' + p.first_name + '!';
+    // ---------- greeting, status badge and verification banner ----------
+    function renderProfile(p) {
+      if (!p) { el('greeting').textContent = 'Welcome'; return; }
+      el('greeting').textContent = greeting() + ', ' + p.first_name;
 
-      const banner = document.getElementById('banner');
+      const badgeEl = el('statusBadge');
+      const labels = {
+        Verified: ['Verified', 'text-bg-success'],
+        Pending: ['Pending', 'text-bg-warning'],
+        Unverified: ['Unverified', 'text-bg-secondary'],
+        Rejected: ['Rejected', 'text-bg-danger']
+      };
+      const [text, cls] = labels[p.verification_status] || ['', ''];
+      if (text) {
+        badgeEl.textContent = text;
+        badgeEl.className = 'badge rounded-pill ' + cls;
+      }
+
+      const banner = el('verifyBanner');
       banner.innerHTML = '';
-      const profileLink = document.createElement('a');
-      profileLink.href = '/resident/profile';
-      profileLink.textContent = 'Profile tab';
+      const link = document.createElement('a');
+      link.href = '/resident/profile';
+      link.textContent = 'Profile tab';
 
       if (p.verification_status === 'Unverified') {
-        banner.className = 'alert alert-warning';
-        banner.append('Your account is not verified yet. Upload your ID in the ', profileLink,
-          ' to request documents and reserve facilities.');
+        banner.className = 'alert alert-warning mb-3';
+        banner.append('Upload your ID in the ', link, ' to request documents and reserve facilities.');
       } else if (p.verification_status === 'Pending') {
-        banner.className = 'alert alert-info';
-        banner.textContent = 'Your ID is waiting for admin review.';
+        banner.className = 'alert alert-info mb-3';
+        banner.textContent = "Your ID is waiting for admin review. You'll get a notification when it's checked.";
       } else if (p.verification_status === 'Rejected') {
-        banner.className = 'alert alert-danger';
-        banner.append('Your ID was rejected' +
-          (p.verification_remarks ? ': ' + p.verification_remarks + '. ' : '. ') +
-          'Upload a new one in the ', profileLink, '.');
+        banner.className = 'alert alert-danger mb-3';
+        banner.append('Your ID was rejected' + (p.verification_remarks ? ': ' + p.verification_remarks + '. ' : '. ') +
+          'Upload a new one in the ', link, '.');
       } else {
-        banner.className = 'alert alert-success';
-        banner.textContent = 'Your account is verified.';
+        banner.className = 'alert d-none';
       }
     }
 
-    async function loadRequests() {
-      const list = document.getElementById('recentRequests');
-      const res = await fetch('/api/requests');
-      if (!res.ok) return;
-      const rows = (await res.json()).slice(0, 3);
-      if (rows.length === 0) { addEmpty(list, 'No requests yet.'); return; }
-      rows.forEach(r => addRow(list, r.document_name, r.purpose, r.status));
+    // ---------- things that need the resident ----------
+    function attentionItem(text, linkText, href, cls) {
+      const box = document.createElement('div');
+      box.className = 'alert ' + cls + ' d-flex align-items-center gap-2 py-2 mb-0';
+      const icon = document.createElement('i');
+      icon.className = 'bi bi-info-circle';
+      const span = document.createElement('span');
+      span.textContent = text;
+      const link = document.createElement('a');
+      link.href = href;
+      link.className = 'ms-auto text-nowrap';
+      link.textContent = linkText;
+      box.append(icon, span, link);
+      return box;
     }
 
-    async function loadReservations() {
-      const list = document.getElementById('upcoming');
-      const res = await fetch('/api/resident/reservations');
-      if (!res.ok) return;
-      const today = todayString();
-      const rows = (await res.json())
+    function renderAttention(requests, reservations) {
+      const box = el('attention');
+      box.innerHTML = '';
+      const items = [];
+
+      (requests || []).filter(r => r.status === 'Ready for Pickup').slice(0, 3).forEach(r => {
+        items.push(attentionItem('Your ' + r.document_name + ' is ready for pickup.', 'View request', '/resident/requests', 'alert-success'));
+      });
+
+      const now = new Date();
+      const today = dateStr(now);
+      const tomorrowDate = new Date(now);
+      tomorrowDate.setDate(now.getDate() + 1);
+      const tomorrow = dateStr(tomorrowDate);
+
+      (reservations || []).filter(r => r.status === 'Approved' && (r.reservation_date === today || r.reservation_date === tomorrow))
+        .slice(0, 2).forEach(r => {
+          const when = r.reservation_date === today ? 'today' : 'tomorrow';
+          items.push(attentionItem(
+            r.facility_name + ' is booked for you ' + when + ', ' + fmtTime(r.start_time) + ' to ' + fmtTime(r.end_time) + '.',
+            'View reservation', '/resident/reservations', 'alert-primary'
+          ));
+        });
+
+      items.forEach(i => box.appendChild(i));
+    }
+
+    // ---------- lists ----------
+    function renderRequests(rows) {
+      const list = el('requestList');
+      if (rows === null) return failed(list);
+      list.innerHTML = '';
+      if (rows.length === 0) {
+        return addMessage(list, "You haven't requested a document yet.", 'Request a document', '/resident/requests');
+      }
+      rows.slice(0, 5).forEach(r => {
+        const sub = r.purpose + ' · ' + fmtDate(r.requested_at.slice(0, 10));
+        const note = r.status === 'Denied' ? r.admin_notes : null;
+        list.appendChild(row(r.document_name, sub, r.status, note));
+      });
+    }
+
+    function renderReservations(rows) {
+      const list = el('reservationList');
+      if (rows === null) return failed(list);
+      list.innerHTML = '';
+      const today = dateStr(new Date());
+      const upcoming = rows
         .filter(r => (r.status === 'Pending' || r.status === 'Approved') && r.reservation_date >= today)
         .sort((a, b) => (a.reservation_date + a.start_time).localeCompare(b.reservation_date + b.start_time))
-        .slice(0, 3);
-      if (rows.length === 0) { addEmpty(list, 'No upcoming reservations.'); return; }
-      rows.forEach(r => addRow(
-        list,
-        r.facility_name,
-        r.reservation_date + ', ' + r.start_time + ' to ' + r.end_time,
-        r.status
-      ));
-    }
-
-    async function loadUnread() {
-      const res = await fetch('/api/notifications/unread-count');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.count > 0) {
-        const box = document.getElementById('unread');
-        box.className = 'alert alert-primary';
-        const link = document.createElement('a');
-        link.href = '/resident/notifications';
-        link.textContent = 'View notifications';
-        box.append('You have ' + data.count + ' unread notification' + (data.count === 1 ? '' : 's') + '. ', link);
+        .slice(0, 5);
+      if (upcoming.length === 0) {
+        return addMessage(list, 'Nothing booked yet.', 'Reserve a facility', '/resident/reservations');
       }
+      upcoming.forEach(r => {
+        const sub = fmtDate(r.reservation_date) + ' · ' + fmtTime(r.start_time) + ' to ' + fmtTime(r.end_time);
+        list.appendChild(row(r.facility_name, sub, r.status));
+      });
     }
 
-    document.getElementById('logout').addEventListener('click', async () => {
-      await fetch('/api/logout', { method: 'POST' });
-      window.location.href = '/';
-    });
+    function renderNotifications(rows) {
+      const list = el('notificationList');
+      if (rows === null) return failed(list);
+      list.innerHTML = '';
+      if (rows.length === 0) {
+        return addMessage(list, 'No notifications yet. Updates about your requests will show up here.');
+      }
+      rows.slice(0, 4).forEach(n => {
+        const div = document.createElement('div');
+        div.className = 'list-row notif-row d-flex justify-content-between align-items-start gap-2';
 
-    loadProfile();
-    loadRequests();
-    loadReservations();
-    loadUnread();
+        const box = document.createElement('div');
+        box.className = 'text-box';
+        const msg = document.createElement('div');
+        msg.className = n.is_read ? 'small text-body-secondary' : 'small fw-medium';
+        msg.textContent = n.message;
+        const when = document.createElement('div');
+        when.className = 'small text-body-secondary';
+        when.textContent = n.date_created.slice(0, 10) === dateStr(new Date()) ? 'Today' : fmtDate(n.date_created.slice(0, 10));
+        box.append(msg, when);
+        div.appendChild(box);
+
+        if (!n.is_read) {
+          const dot = document.createElement('span');
+          dot.className = 'badge text-bg-primary';
+          dot.textContent = 'New';
+          div.appendChild(dot);
+        }
+
+        div.addEventListener('click', async () => {
+          if (!n.is_read) {
+            try { await fetch('/api/notifications/' + n.notification_id + '/read', { method: 'POST' }); } catch (e) { /* ignore */ }
+          }
+          const ok = n.link && n.link.startsWith('/') && !n.link.startsWith('//');
+          window.location.href = ok ? n.link : '/resident/notifications';
+        });
+        list.appendChild(div);
+      });
+    }
+
+    function renderHall() {
+      const box = el('hallInfo');
+      [['bi-clock', HALL.hours], ['bi-telephone', HALL.phone], ['bi-geo-alt', HALL.address]].forEach(([icon, text]) => {
+        const r = document.createElement('div');
+        r.className = 'hall-row small';
+        const i = document.createElement('i');
+        i.className = 'bi ' + icon;
+        const s = document.createElement('span');
+        s.textContent = text;
+        r.append(i, s);
+        box.appendChild(r);
+      });
+    }
+
+    async function start() {
+      renderHall();
+      const [profile, requests, reservations, notifications] = await Promise.all([
+        getJson('/api/profile'),
+        getJson('/api/requests'),
+        getJson('/api/resident/reservations'),
+        getJson('/api/notifications')
+      ]);
+      renderProfile(profile);
+      renderAttention(requests, reservations);
+      renderRequests(requests);
+      renderReservations(reservations);
+      renderNotifications(notifications);
+    }
+
+    start();
   </script>
 </body>
 </html>
