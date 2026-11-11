@@ -8,26 +8,32 @@ document.write('<script src="/errors.js"><\/script>');
     document.head.appendChild(css);
   }
 
-  // the Dashboard is opened from the brand name on the left
   // Layout by screen size:
   //  - wide screens: icon + name
   //  - tablets: icons only, so everything stays on one row
-  //  - phones: links on a second row that scrolls sideways
+  //  - phones: a Menu button opens the links as a list
   const style = document.createElement('style');
   style.textContent =
     '@media (min-width:576px) and (max-width:1199.98px){' +
       '.bl-label{display:none}' +
       '.bl-links .nav-link{padding:.5rem .7rem}' +
     '}' +
+    '@media (min-width:576px){' +
+      '.bl-menu-btn{display:none!important}' +
+    '}' +
     '@media (max-width:575.98px){' +
       '.bl-brand{order:1;margin-right:auto!important}' +
-      '.bl-right{order:2}' +
-      '.bl-links{order:3;width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-top:.25rem}' +
-      '.bl-links::-webkit-scrollbar{display:none}' +
-      '.bl-links .nav-link{white-space:nowrap}' +
+      '.bl-brand .badge{display:none}' +
+      '.bl-right{order:2;gap:.5rem!important}' +
+      '.bl-logout-label{display:none}' +
+      '.navbar-expand .bl-links{display:none;order:3;width:100%;flex-direction:column;gap:0!important;' +
+        'margin-top:.5rem;padding-top:.5rem;border-top:1px solid rgba(255,255,255,.15)}' +
+      '.navbar-expand .bl-links.open{display:flex}' +
+      '.bl-links .nav-link{padding:.6rem .25rem}' +
     '}';
   document.head.appendChild(style);
 
+  // the Dashboard is opened from the brand name on the left
   const links = [
     ['/admin/accounts', 'bi-people', 'Accounts'],
     ['/admin/requests', 'bi-file-earmark-text', 'Document Requests'],
@@ -49,12 +55,22 @@ document.write('<script src="/errors.js"><\/script>');
       '<a class="bl-brand navbar-brand d-flex align-items-center gap-2 me-4" href="/admin" title="Go to the dashboard">' +
         'BarangayLink<span class="badge text-bg-secondary fw-normal">Admin</span>' +
       '</a>' +
-      '<div class="bl-links navbar-nav me-auto gap-1">' + items + '</div>' +
+      '<div class="bl-links navbar-nav me-auto gap-1" id="adminLinks">' + items + '</div>' +
       '<div class="bl-right d-flex align-items-center gap-3">' +
-        '<button id="logout" class="btn btn-outline-light btn-sm">Log out</button>' +
+        '<button id="logout" class="btn btn-outline-light btn-sm" aria-label="Log out">' +
+          '<i class="bi bi-box-arrow-right d-sm-none" aria-hidden="true"></i><span class="bl-logout-label">Log out</span>' +
+        '</button>' +
+        '<button id="menuBtn" class="bl-menu-btn btn btn-outline-light btn-sm" type="button" aria-label="Menu" aria-expanded="false" aria-controls="adminLinks">' +
+          '<i class="bi bi-list" aria-hidden="true"></i>' +
+        '</button>' +
       '</div>' +
     '</nav>'
   );
+
+  document.getElementById('menuBtn').addEventListener('click', () => {
+    const open = document.getElementById('adminLinks').classList.toggle('open');
+    document.getElementById('menuBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
 
   document.getElementById('logout').addEventListener('click', async () => {
     await fetch('/api/logout', { method: 'POST' });
