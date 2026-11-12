@@ -73,9 +73,18 @@ app.post('/api/register', async (req, res) => {
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
   }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthdate.trim())) {
+    return res.status(400).json({ error: 'Enter a valid birthdate.' });
+   }
   const birth = new Date(birthdate);
   if (Number.isNaN(birth.getTime()) || birth > new Date()) {
     return res.status(400).json({ error: 'Enter a valid birthdate.' });
+   }
+  // must be at least 13 years old (today's date in Manila)
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date());
+  const cutoff = (Number(today.slice(0, 4)) - 13) + today.slice(4);
+  if (birthdate.trim() > cutoff) {
+    return res.status(400).json({ error: 'You must be at least 13 years old to register.' });
   }
 
   const conn = await pool.getConnection();
